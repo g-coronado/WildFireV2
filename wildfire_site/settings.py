@@ -41,7 +41,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'WildFireV2.wildfire_site.urls'
+ROOT_URLCONF = 'wildfire_site.urls'
 
 TEMPLATES = [
     {
@@ -58,7 +58,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'WildFireV2.wildfire_site.wsgi.application'
+WSGI_APPLICATION = 'wildfire_site.wsgi.application'
 
 # DATABASE (auto from Render)
 DATABASES = {
