@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alberta Wildfire Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <link rel="stylesheet" href="/static/dashboard/style.css">
+</head>
+<body>
+    <div class="page">
+        <header class="hero">
+            <h1>Alberta Wildfire Dashboard Version 2</h1>
+            <p>Running sqlite database.</p>
+        </header>
+
+        <section class="cards">
+            <div class="card"><h3>Total Wildfires</h3><p>{{ summary.total_fires }}</p></div>
+            <div class="card"><h3>Date Range</h3><p>{{ summary.date_range }}</p></div>
+            <div class="card"><h3>Average Fire Size</h3><p>{{ summary.average_fire_size }} ha</p></div>
+            <div class="card"><h3>Forecast Month</h3><p>{{ summary.forecast_month }}</p></div>
+            <div class="card"><h3>Top Zone</h3><p>{{ summary.top_zone }}</p></div>
+            <div class="card"><h3>Top Cause</h3><p>{{ summary.top_cause }}</p></div>
+        </section>
+
+        <section class="cards">
+            <div class="card"><h3>Model RMSE</h3><p>{{ metrics.rmse }}</p></div>
+            <div class="card"><h3>Model MAE</h3><p>{{ metrics.mae }}</p></div>
+            <div class="card"><h3>Model R²</h3><p>{{ metrics.r2 }}</p></div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Predicted Wildfire Risk Map</h2>
+                    <p class="panel-subtitle">Yellow circles show likely risk zones. Red circles show very likely risk zones for the next forecast month.</p>
+                </div>
+                <div class="map-legend">
+                    <span><i class="legend-swatch yellow"></i> Likely</span>
+                    <span><i class="legend-swatch red"></i> Very likely</span>
+                </div>
+            </div>
+            <div id="riskMap"></div>
+        </section>
+
+        <section class="chart-grid">
+            <div class="panel"><h2>Common Causes</h2><canvas id="causeChart"></canvas></div>
+            <div class="panel"><h2>Wildfires by Zone</h2><canvas id="zoneChart"></canvas></div>
+            <div class="panel"><h2>Top 10 Months</h2><canvas id="topMonthsChart"></canvas></div>
+            <div class="panel"><h2>Wildfires by Month</h2><canvas id="monthChart"></canvas></div>
+            <div class="panel"><h2>Total Area Burned by Year</h2><canvas id="areaChart"></canvas></div>
+            <div class="panel"><h2>Weather Conditions</h2><canvas id="weatherChart"></canvas></div>
+            <div class="panel full"><h2>Next Month Forecast by Zone</h2><canvas id="forecastChart"></canvas></div>
+        </section>
+
+        <section class="panel">
+            <h2>Forecast Table</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Zone</th>
+                        <th>Forecast Month</th>
+                        <th>Predicted Fire Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in forecast_rows %}
+                    <tr>
+                        <td>{{ row.ZONE }}</td>
+                        <td>{{ row.FORECAST_MONTH }}</td>
+                        <td>{{ row.PREDICTED_FIRE_COUNT }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    {{ charts.cause.labels|json_script:"cause-labels" }}
+    {{ charts.cause.values|json_script:"cause-values" }}
+    {{ charts.zone.labels|json_script:"zone-labels" }}
+    {{ charts.zone.values|json_script:"zone-values" }}
+    {{ charts.top_months.labels|json_script:"top-months-labels" }}
+    {{ charts.top_months.values|json_script:"top-months-values" }}
+    {{ charts.month.labels|json_script:"month-labels" }}
+    {{ charts.month.values|json_script:"month-values" }}
+    {{ charts.area.labels|json_script:"area-labels" }}
+    {{ charts.area.values|json_script:"area-values" }}
+    {{ charts.weather.labels|json_script:"weather-labels" }}
+    {{ charts.weather.values|json_script:"weather-values" }}
+    {{ charts.forecast.labels|json_script:"forecast-labels" }}
+    {{ charts.forecast.values|json_script:"forecast-values" }}
+    {{ map_points_json|json_script:"map-points" }}
+
+    <script>
+        function readJson(id) {
+            return JSON.parse(document.getElementById(id).textContent);
+        }
+
+        function makeChart(canvasId, chartType, labelsId, valuesId, labelText) {
+            new Chart(document.getElementById(canvasId), {
+                type: chartType,
+                data: {
+                    labels: readJson(labelsId),
+                    datasets: [{
+                        label: labelText,
+                        data: readJson(valuesId),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        makeChart('causeChart', 'bar', 'cause-labels', 'cause-values', 'Wildfires');
+        makeChart('zoneChart', 'bar', 'zone-labels', 'zone-values', 'Wildfires');
+        makeChart('topMonthsChart', 'bar', 'top-months-labels', 'top-months-values', 'Wildfires');
+        makeChart('monthChart', 'bar', 'month-labels', 'month-values', 'Wildfires');
+        makeChart('areaChart', 'line', 'area-labels', 'area-values', 'Area Burned');
+        makeChart('weatherChart', 'bar', 'weather-labels', 'weather-values', 'Wildfires');
+        makeChart('forecastChart', 'bar', 'forecast-labels', 'forecast-values', 'Predicted Fires');
+
+        const map = L.map('riskMap').setView([55.3, -114.9], 5);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        const albertaBounds = L.latLngBounds([48.9, -120.1], [60.1, -109.9]);
+        map.setMaxBounds(albertaBounds);
+
+        readJson('map-points').forEach(point => {
+            L.circleMarker([point.latitude, point.longitude], {
+                radius: point.radius,
+                color: point.color,
+                fillColor: point.color,
+                fillOpacity: 0.45,
+                weight: 2
+            }).addTo(map).bindPopup(`
+                <strong>${point.zone}</strong><br>
+                Risk: ${point.risk_level}<br>
+                Forecast month: ${point.forecast_month}<br>
+                Predicted fires: ${point.predicted_fire_count}
+            `);
+        });
+    </script>
+</body>
+</html>
