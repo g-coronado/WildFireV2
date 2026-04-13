@@ -47,6 +47,14 @@ def build_dashboard_data():
     df = df[(df['YEAR'] >= 2006) & (df['YEAR'] <= 2025)].copy()
 
     df['CAUSE_FINAL'] = df.apply(choose_cause, axis=1)
+    df['CAUSE_FINAL'] = df['CAUSE_FINAL'].replace(['nan', 'NaN', None, '', ' '], np.nan)
+    df['CAUSE_FINAL'] = df['CAUSE_FINAL'].fillna('Lightning')
+
+    df['WEATHER_CONDITIONS_OVER_FIRE'] = df['WEATHER_CONDITIONS_OVER_FIRE'].replace(
+    ['nan', 'NaN', 'None', '', ' ', '  '], np.nan)
+
+    df['WEATHER_CONDITIONS_OVER_FIRE'] = df['WEATHER_CONDITIONS_OVER_FIRE'].fillna('Unknown')
+
     df['ZONE'] = df.apply(lambda row: assign_zone(row['LATITUDE'], row['LONGITUDE']), axis=1)
 
     visual_cols = [

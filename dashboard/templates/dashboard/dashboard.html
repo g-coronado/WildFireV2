@@ -99,14 +99,34 @@
             return JSON.parse(document.getElementById(id).textContent);
         }
 
+        function valueToColor(v, min, max) {
+            const ratio = (v - min) / (max - min);
+
+            // Gradient: green → yellow → orange → red
+            const r = Math.floor(255 * ratio);
+            const g = Math.floor(200 * (1 - ratio));
+            const b = 80;
+
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+
         function makeChart(canvasId, chartType, labelsId, valuesId, labelText) {
+            const values = readJson(valuesId);
+
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+
+            const dynamicColors = values.map(v => valueToColor(v, min, max));
+
             new Chart(document.getElementById(canvasId), {
                 type: chartType,
                 data: {
                     labels: readJson(labelsId),
                     datasets: [{
                         label: labelText,
-                        data: readJson(valuesId),
+                        data: values,
+                        backgroundColor: dynamicColors,
                         borderWidth: 1
                     }]
                 },
