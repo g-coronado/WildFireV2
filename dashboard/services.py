@@ -8,6 +8,8 @@ import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
+from datetime import datetime
+
 # DATA_URL = 'https://raw.githubusercontent.com/g-coronado/mln_data/refs/heads/main/fp-historical-wildfire-data-2006-2025.csv' # delete it when the data is imported into the database
 
 
@@ -67,6 +69,46 @@ def build_dashboard_data():
         'DISPATCHED_RESOURCE'
     ]
     wildfire_visual_df = df[[col for col in visual_cols if col in df.columns]].copy()
+
+    # --- CLEAN LAT/LON BEFORE BUILDING HEATMAP ---
+    clean_df = wildfire_visual_df.copy()
+
+    # 1. Convert LAT/LON to numeric
+    clean_df['LATITUDE'] = pd.to_numeric(clean_df['LATITUDE'], errors='coerce')
+    clean_df['LONGITUDE'] = pd.to_numeric(clean_df['LONGITUDE'], errors='coerce')
+
+    # 2. Drop invalid coordinates
+    clean_df = clean_df.dropna(subset=['LATITUDE', 'LONGITUDE'])
+
+    # 3. Drop invalid fire size
+    clean_df = clean_df.dropna(subset=['CURRENT_SIZE'])
+
+    # 4. Remove coordinates outside Alberta bounds
+    clean_df = clean_df[
+        (clean_df['LATITUDE'] >= 48.9) &
+        (clean_df['LATITUDE'] <= 60.1) &
+        (clean_df['LONGITUDE'] >= -120.1) &
+        (clean_df['LONGITUDE'] <= -109.9)
+    ].copy()
+    # Limit heatmap to last 5 years
+    recent_year = clean_df['YEAR'].max() - 5
+    clean_df = clean_df[clean_df['YEAR'] >= recent_year].copy()
+    
+
+    # ------------------------------------------------
+
+
+
+    # Heatmap points from historical wildfire locations
+    heatmap_points = (
+        clean_df
+            .apply(lambda row: [
+                float(row['LATITUDE']),
+                float(row['LONGITUDE']),
+                min(1.0, max(0.3, float(row['CURRENT_SIZE']) / 5))
+            ], axis=1)
+            .tolist()
+    )
 
     cause_counts = wildfire_visual_df.groupby('CAUSE_FINAL').size().reset_index(name='count')
     cause_counts['CAUSE_GROUPED'] = np.where(cause_counts['count'] < 100, 'Other', cause_counts['CAUSE_FINAL'])
@@ -145,8 +187,8 @@ def build_dashboard_data():
     mae = float(mean_absolute_error(y_test, y_pred))
     r2 = float(r2_score(y_test, y_pred))
 
-    last_date = wildfire_monthly['DATE'].max()
-    forecast_date = last_date + pd.DateOffset(months=1)
+    today = datetime.now()
+    forecast_date = today + pd.DateOffset(months=1)
     model_columns = X_train.columns.tolist()
     zone_dummy_cols = [col for col in model_columns if col.startswith('ZONE_')]
     next_month_predictions = []
@@ -207,7 +249,8 @@ def build_dashboard_data():
             risk_level = 'Likely'
             color = '#eab308'
         else:
-            continue
+            risk_level = 'Low'
+            color = '#fcd34d'   # light yellow
 
         radius = max(10, min(28, 10 + prediction * 1.5))
         map_points.append({
@@ -268,4 +311,5 @@ def build_dashboard_data():
         'forecast_rows': forecast_df.to_dict(orient='records'),
         'forecast_json': json.dumps(forecast_df.to_dict(orient='records')),
         'map_points_json': json.dumps(map_points),
+        'heatmap_points_json': json.dumps(heatmap_points),
     }
