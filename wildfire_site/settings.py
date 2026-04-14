@@ -4,7 +4,7 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY
-SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-me')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'python-groupGHJ-secret-key')
 
 # DEBUG OFF on Render automatically
 DEBUG = 'RENDER' not in os.environ
